@@ -1,0 +1,50 @@
+
+name: Build RocketLeagueBeta PS3
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl make
+
+      - name: Download PS3 toolchain
+        run: |
+          curl -fL https://cdn.hddj.top/ps3dev/ps3toolchain/releases/download/2026-06-09/ps3dev-92534e60-ubuntu-latest.tar.gz \
+            | tar -xz -C "$GITHUB_WORKSPACE"
+
+          echo "PS3DEV=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
+          echo "PSL1GHT=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
+
+      - name: Check toolchain
+        run: |
+          test -f "$PSL1GHT/ppu_rules"
+          ls "$PS3DEV/ppu/bin"
+
+      - name: Build game
+        run: |
+          make -C src
+
+      - name: Upload build files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RocketLeagueBeta-build
+          path: |
+            src/build/**
+            src/*.elf
+            src/*.self
+            src/*.pkg
+          if-no-files-found: warn
