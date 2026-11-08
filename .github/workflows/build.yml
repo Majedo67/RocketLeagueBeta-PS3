@@ -1,24 +1,18 @@
 
-name: Build RocketLeagueBeta PS3
+name: Inspect PS3 Toolchain
 
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 jobs:
-  build:
+  inspect:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl make
 
       - name: Download PS3 toolchain
         run: |
@@ -28,23 +22,13 @@ jobs:
           echo "PS3DEV=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
           echo "PSL1GHT=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
 
-      - name: Check toolchain
+      - name: Inspect build rules
         run: |
-          test -f "$PSL1GHT/ppu_rules"
-          ls "$PS3DEV/ppu/bin"
-
-      - name: Build game
-        run: |
-          make -C src
-
-      - name: Upload build files
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: RocketLeagueBeta-build
-          path: |
-            src/build/**
-            src/*.elf
-            src/*.self
-            src/*.pkg
-          if-no-files-found: warn
+          echo "PS3DEV=$PS3DEV"
+          echo "PSL1GHT=$PSL1GHT"
+          echo "Searching for ppu_rules..."
+          find "$PS3DEV" -name ppu_rules
+          echo "Searching for Makefiles..."
+          find "$PS3DEV" -name Makefile | head -50
+          echo "Toolchain contents:"
+          ls -la "$PS3DEV"
