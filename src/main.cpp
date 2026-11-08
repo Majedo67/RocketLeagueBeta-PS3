@@ -1,32 +1,26 @@
 #include "game.cpp"
 #include "audio.h"
+#include "controller.h"
+#include <sys/timer.h>
 
 bool activateMenuOption(Game& game, MenuState& menu) {
     switch (getSelectedMenuOption(menu)) {
         case OPTION_PLAY:
             game.mode = NORMAL;
-            resetGame(game);
-            menu.visible = false;
-            return true;
+            break;
 
         case OPTION_HEATSEEKER:
             game.mode = HEATSEEKER;
-            resetGame(game);
-            menu.visible = false;
-            return true;
+            break;
 
         case OPTION_BULLET_BALL:
             game.mode = BULLET_BALL;
-            resetGame(game);
-            menu.visible = false;
-            return true;
+            break;
 
         case OPTION_TRAINING:
         case OPTION_LOCAL_MATCH:
             game.mode = NORMAL;
-            resetGame(game);
-            menu.visible = false;
-            return true;
+            break;
 
         case OPTION_GARAGE:
             menu.screen = MENU_GARAGE;
@@ -40,8 +34,12 @@ bool activateMenuOption(Game& game, MenuState& menu) {
             return false;
 
         default:
-            return false;
+            return true;
     }
+
+    resetGame(game);
+    menu.visible = false;
+    return true;
 }
 
 int main() {
@@ -49,16 +47,35 @@ int main() {
     MenuState menu{};
     AudioState audio{};
 
-    initializeMenu(menu);
+    if (!initializeController())
+        return 1;
 
-    game.mode = NORMAL;
+    initializeMenu(menu);
     resetGame(game);
 
-    // Start normal music.
     initializeAudio(audio, menu);
 
-    // Update music when the selected track changes.
-    updateAudio(audio, menu);
+    bool running = true;
+    bool confirm = false;
+
+    while (running) {
+        updateController(menu, confirm);
+
+        if (confirm && menu.visible) {
+            running = activateMenuOption(game, menu);
+        }
+
+        updateAudio(audio, menu);
+
+        if (!menu.visible) {
+            updateGame(game, 0.0f, 0.0f, 1.0f / 60.0f);
+        }
+
+        sys_timer_usleep(16667);
+    }
+
+    shutdownAudio(audio);
+    shutdownController();
 
     return 0;
 }
