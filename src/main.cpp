@@ -1,4 +1,6 @@
-#include "game.cpp"
+
+#include "game.h"
+#include "menu.h"
 #include "audio.h"
 #include "controller.h"
 #include "renderer.h"
@@ -9,6 +11,12 @@ int main() {
     MenuState menu{};
     AudioState audio{};
 
+    float throttle = 0.0f;
+    float steering = 0.0f;
+
+    bool running = true;
+    bool confirm = false;
+
     if (!initializeController())
         return 1;
 
@@ -18,13 +26,18 @@ int main() {
     initializeRenderer();
     initializeAudio(audio, menu);
 
-    bool running = true;
-    bool confirm = false;
-
     while (running) {
-        updateController(menu, confirm);
+        updateController(
+            menu,
+            game,
+            confirm,
+            throttle,
+            steering
+        );
 
-        if (confirm && menu.visible) {
+        if (confirm && menu.visible &&
+            !menu.waitingForStart) {
+
             MenuOption option = getSelectedMenuOption(menu);
 
             if (option == OPTION_EXIT) {
@@ -42,7 +55,12 @@ int main() {
         }
 
         if (!menu.visible) {
-            updateGame(game, 0.0f, 0.0f, 1.0f / 60.0f);
+            updateGame(
+                game,
+                throttle,
+                steering,
+                1.0f / 60.0f
+            );
         }
 
         updateAudio(audio, menu);
