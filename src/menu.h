@@ -3,6 +3,7 @@
 #define NOVA_MENU_H
 
 enum MenuScreen {
+    MENU_TITLE,
     MENU_HOME,
     MENU_PLAY,
     MENU_GARAGE,
@@ -21,10 +22,30 @@ enum MenuOption {
     OPTION_COUNT
 };
 
+enum SecretInput {
+    SECRET_UP,
+    SECRET_DOWN,
+    SECRET_LEFT,
+    SECRET_RIGHT,
+    SECRET_X,
+    SECRET_O,
+    SECRET_START,
+    SECRET_OTHER
+};
+
+enum MusicTrack {
+    MUSIC_NORMAL,
+    MUSIC_SARPBC
+};
+
 struct MenuState {
     MenuScreen screen;
     int selectedOption;
     bool visible;
+    bool waitingForStart;
+    bool sarpbcUnlocked;
+    int secretCodeProgress;
+    MusicTrack music;
 };
 
 static const char* MENU_OPTION_NAMES[OPTION_COUNT] = {
@@ -38,14 +59,67 @@ static const char* MENU_OPTION_NAMES[OPTION_COUNT] = {
     "Exit"
 };
 
+static const SecretInput SARPBC_CODE[11] = {
+    SECRET_UP, SECRET_UP,
+    SECRET_DOWN, SECRET_DOWN,
+    SECRET_LEFT, SECRET_RIGHT,
+    SECRET_LEFT, SECRET_RIGHT,
+    SECRET_X, SECRET_O,
+    SECRET_START
+};
+
 inline void initializeMenu(MenuState& menu) {
-    menu.screen = MENU_HOME;
+    menu.screen = MENU_TITLE;
     menu.selectedOption = 0;
     menu.visible = true;
+    menu.waitingForStart = true;
+    menu.sarpbcUnlocked = false;
+    menu.secretCodeProgress = 0;
+    menu.music = MUSIC_NORMAL;
 }
 
-inline void moveMenuSelection(MenuState& menu, int direction) {
-    if (!menu.visible || direction == 0) return;
+inline void pressAnyButtonToStart(MenuState& menu) {
+    if (menu.waitingForStart) {
+        menu.waitingForStart = false;
+        menu.screen = MENU_HOME;
+    }
+}
+
+inline bool registerSecretInput(
+    MenuState& menu,
+    SecretInput input
+) {
+    if (menu.sarpbcUnlocked) return true;
+
+    if (input == SARPBC_CODE[menu.secretCodeProgress]) {
+        menu.secretCodeProgress++;
+
+        if (menu.secretCodeProgress == 11) {
+            menu.sarpbcUnlocked = true;
+            menu.music = MUSIC_SARPBC;
+            menu.secretCodeProgress = 0;
+            return true;
+        }
+    } else {
+        menu.secretCodeProgress =
+            (input == SECRET_UP) ? 1 : 0;
+    }
+
+    return false;
+}
+
+inline void setNormalMusic(MenuState& menu) {
+    menu.music = MUSIC_NORMAL;
+}
+
+inline void moveMenuSelection(
+    MenuState& menu,
+    int direction
+) {
+    if (!menu.visible ||
+        menu.waitingForStart ||
+        direction == 0)
+        return;
 
     menu.selectedOption += direction;
 
@@ -56,8 +130,12 @@ inline void moveMenuSelection(MenuState& menu, int direction) {
         menu.selectedOption = 0;
 }
 
-inline MenuOption getSelectedMenuOption(const MenuState& menu) {
-    return static_cast<MenuOption>(menu.selectedOption);
+inline MenuOption getSelectedMenuOption(
+    const MenuState& menu
+) {
+    return static_cast<MenuOption>(
+        menu.selectedOption
+    );
 }
 
 #endif
