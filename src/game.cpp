@@ -1,46 +1,6 @@
 
+#include "game.h"
 #include <cmath>
-
-const float ARENA_X = 40.0f;
-const float ARENA_Z = 60.0f;
-const float BALL_RADIUS = 1.5f;
-const float CAR_RADIUS = 2.0f;
-
-enum GameMode {
-    NORMAL,
-    HEATSEEKER,
-    BULLET_BALL
-};
-
-struct Vec3 {
-    float x, y, z;
-};
-
-struct Car {
-    Vec3 position;
-    Vec3 velocity;
-    float rotation;
-    float boost;
-    int team;
-    bool jumping;
-};
-
-struct Ball {
-    Vec3 position;
-    Vec3 velocity;
-    int targetTeam;
-    int lastHitTeam;
-    float speed;
-};
-
-struct Game {
-    Car car;
-    Ball ball;
-    GameMode mode;
-    int blueScore;
-    int orangeScore;
-    float matchTime;
-};
 
 float clampValue(float v, float low, float high) {
     if (v < low) return low;
@@ -85,28 +45,23 @@ void moveCar(Game& game, float throttle,
              float steering, float dt) {
     Car& car = game.car;
 
-    // Steering becomes less powerful at high speed.
     float speed = vecLength(car.velocity);
     float steeringPower = 2.4f / (1.0f + speed * 0.04f);
 
     car.rotation += steering * steeringPower * dt;
 
-    // Forward direction.
     Vec3 forward = {
         std::sin(car.rotation),
         0,
         std::cos(car.rotation)
     };
 
-    // Acceleration and braking.
     car.velocity.x += forward.x * throttle * 24.0f * dt;
     car.velocity.z += forward.z * throttle * 24.0f * dt;
 
-    // Friction.
     car.velocity.x *= 0.992f;
     car.velocity.z *= 0.992f;
 
-    // Speed limit.
     float currentSpeed = vecLength(car.velocity);
     if (currentSpeed > 27.0f) {
         car.velocity.x *= 27.0f / currentSpeed;
@@ -116,7 +71,6 @@ void moveCar(Game& game, float throttle,
     car.position.x += car.velocity.x * dt;
     car.position.z += car.velocity.z * dt;
 
-    // Arena boundaries.
     car.position.x = clampValue(
         car.position.x, -ARENA_X + 2, ARENA_X - 2
     );
@@ -152,7 +106,8 @@ void hitBall(Game& game, int team) {
 
     float distance = vecLength(difference);
 
-    if (distance > BALL_RADIUS + CAR_RADIUS || distance < 0.001f)
+    if (distance > BALL_RADIUS + CAR_RADIUS ||
+        distance < 0.001f)
         return;
 
     Vec3 direction = normalizeVec(difference);
@@ -168,7 +123,6 @@ void hitBall(Game& game, int team) {
 
     game.ball.lastHitTeam = team;
 
-    // Heatseeker changes target after each touch.
     if (game.mode == HEATSEEKER) {
         game.ball.targetTeam = 1 - team;
     }
@@ -177,7 +131,6 @@ void hitBall(Game& game, int team) {
 void updateBall(Game& game, float dt) {
     Ball& ball = game.ball;
 
-    // Heatseeker homes toward the opposite goal.
     if (game.mode == HEATSEEKER) {
         float targetZ = ball.targetTeam == 0
             ? -ARENA_Z : ARENA_Z;
@@ -190,26 +143,20 @@ void updateBall(Game& game, float dt) {
 
         ball.velocity.x += targetDirection.x * 5.0f * dt;
         ball.velocity.z += targetDirection.z * 5.0f * dt;
-
-        // Gradually increase ball speed.
         ball.speed += 1.5f * dt;
     }
 
-    // Ball gravity.
     ball.velocity.y -= 12.0f * dt;
 
-    // Move ball.
     ball.position.x += ball.velocity.x * dt;
     ball.position.y += ball.velocity.y * dt;
     ball.position.z += ball.velocity.z * dt;
 
-    // Ground bounce.
     if (ball.position.y < BALL_RADIUS) {
         ball.position.y = BALL_RADIUS;
         ball.velocity.y = std::fabs(ball.velocity.y) * 0.72f;
     }
 
-    // Side wall bounce.
     if (ball.position.x < -ARENA_X ||
         ball.position.x > ARENA_X) {
         ball.position.x = clampValue(
@@ -218,7 +165,6 @@ void updateBall(Game& game, float dt) {
         ball.velocity.x *= -0.85f;
     }
 
-    // Back walls.
     if (ball.position.z < -ARENA_Z ||
         ball.position.z > ARENA_Z) {
         ball.position.z = clampValue(
@@ -227,13 +173,11 @@ void updateBall(Game& game, float dt) {
         ball.velocity.z *= -0.85f;
     }
 
-    // Bullet Ball: faster ball.
     if (game.mode == BULLET_BALL) {
         ball.velocity.x *= 1.003f;
         ball.velocity.z *= 1.003f;
     }
 
-    // Keep ball speed under control.
     float speed = vecLength(ball.velocity);
     float maxSpeed = game.mode == HEATSEEKER ? 45.0f : 35.0f;
 
