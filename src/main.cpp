@@ -1,6 +1,5 @@
-
 #include "game.cpp"
-#include "menu.h"
+#include "audio.h"
 
 bool activateMenuOption(Game& game, MenuState& menu) {
     switch (getSelectedMenuOption(menu)) {
@@ -45,6 +44,11 @@ bool activateMenuOption(Game& game, MenuState& menu) {
     }
 }
 
+// Gets the music selected by the menu.
+const char* getCurrentMusic(const MenuState& menu) {
+    return getMusicFile(menu);
+}
+
 int main() {
     Game game{};
     MenuState menu{};
@@ -53,6 +57,9 @@ int main() {
 
     game.mode = NORMAL;
     resetGame(game);
+
+    // Starts with the normal Rocket League music selection.
+    const char* musicFile = getCurrentMusic(menu);
 
     return 0;
 }
