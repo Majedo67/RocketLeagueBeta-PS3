@@ -44,22 +44,21 @@ bool activateMenuOption(Game& game, MenuState& menu) {
     }
 }
 
-// Gets the music selected by the menu.
-const char* getCurrentMusic(const MenuState& menu) {
-    return getMusicFile(menu);
-}
-
 int main() {
     Game game{};
     MenuState menu{};
+    AudioState audio{};
 
     initializeMenu(menu);
 
     game.mode = NORMAL;
     resetGame(game);
 
-    // Starts with the normal Rocket League music selection.
-    const char* musicFile = getCurrentMusic(menu);
+    // Start normal music.
+    initializeAudio(audio, menu);
+
+    // Update music when the selected track changes.
+    updateAudio(audio, menu);
 
     return 0;
 }
