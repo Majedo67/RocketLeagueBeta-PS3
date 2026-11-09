@@ -1,34 +1,6 @@
-
-name: Inspect PS3 Toolchain
-
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-jobs:
-  inspect:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download PS3 toolchain
+      - name: Read PPU build rules
         run: |
-          curl -fL https://cdn.hddj.top/ps3dev/ps3toolchain/releases/download/2026-06-09/ps3dev-92534e60-ubuntu-latest.tar.gz \
-            | tar -xz -C "$GITHUB_WORKSPACE"
-
-          echo "PS3DEV=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
-          echo "PSL1GHT=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
-
-      - name: Inspect build rules
-        run: |
-          echo "PS3DEV=$PS3DEV"
-          echo "PSL1GHT=$PSL1GHT"
-          echo "Searching for ppu_rules..."
-          find "$PS3DEV" -name ppu_rules
-          echo "Searching for Makefiles..."
-          find "$PS3DEV" -name Makefile | head -50
-          echo "Toolchain contents:"
-          ls -la "$PS3DEV"
+          echo "=== ppu_rules ==="
+          sed -n '1,200p' "$PS3DEV/ppu_rules"
+          echo "=== src Makefile ==="
+          cat src/Makefile
