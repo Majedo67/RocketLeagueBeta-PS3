@@ -1,4 +1,3 @@
-
 #ifndef GAME_INPUT_H
 #define GAME_INPUT_H
 
@@ -15,6 +14,9 @@ inline void readGameInput(
 
     throttle = float(pad.PRE_R2) / 255.0f
              - float(pad.PRE_L2) / 255.0f;
+
+    game.car.boosting = pad.BTN_R1;
+    game.car.drifting = pad.BTN_L1;
 
     if (pad.BTN_CROSS) {
         jumpCar(game);
