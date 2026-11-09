@@ -33,7 +33,7 @@ jobs:
           make -C src -pn | grep -E '^(SOURCES|CFILES|CXXFILES|OBJS|OFILES|TARGET) *[:?+]?=' || true
 
       - name: Build PKG
-        run: make -C src RocketLeagueBeta.pkg
+        run: make -C src VERBOSE=1 RocketLeagueBeta.pkg
 
       - name: Upload PKG
         uses: actions/upload-artifact@v4
