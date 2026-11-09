@@ -1,4 +1,3 @@
-
 #ifndef GAME_H
 #define GAME_H
 
@@ -24,6 +23,8 @@ struct Car {
     float boost;
     int team;
     bool jumping;
+    bool boosting;
+    bool drifting;
 };
 
 struct Ball {
