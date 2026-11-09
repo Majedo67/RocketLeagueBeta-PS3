@@ -1,4 +1,4 @@
-name: Inspect PSL1GHT Files
+name: Build RocketLeagueBeta PS3 PKG
 
 on:
   push:
@@ -6,14 +6,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  inspect:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download toolchain
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y curl make
+
+      - name: Download PS3 toolchain
         run: |
           curl -fL https://cdn.hddj.top/ps3dev/ps3toolchain/releases/download/2026-06-09/ps3dev-92534e60-ubuntu-latest.tar.gz \
             | tar -xz -C "$GITHUB_WORKSPACE"
@@ -21,17 +24,13 @@ jobs:
           echo "PS3DEV=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
           echo "PSL1GHT=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
 
-      - name: Find required files
+      - name: Build PKG
         run: |
-          echo "=== TOOLCHAIN ROOT ==="
-          ls -la "$PS3DEV"
+          make -C src RocketLeagueBeta.pkg
 
-          echo "=== BUILD RULE FILES ==="
-          find "$PS3DEV" -type f \( \
-            -name 'base_rules' -o \
-            -name 'data_rules' -o \
-            -name 'ppu_rules' \
-          \)
-
-          echo "=== PSL1GHT DIRECTORIES ==="
-          find "$PS3DEV" -maxdepth 3 -type d
+      - name: Upload PKG
+        uses: actions/upload-artifact@v4
+        with:
+          name: RocketLeagueBeta-PKG
+          path: src/RocketLeagueBeta.pkg
+          if-no-files-found: error
