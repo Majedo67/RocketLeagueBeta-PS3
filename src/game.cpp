@@ -61,11 +61,8 @@ void moveCar(Game& game, float throttle, float steering, float dt) {
     car.velocity.x += forwardX * throttle * acceleration * dt;
     car.velocity.z += forwardZ * throttle * acceleration * dt;
 
-    if (useBoost) {
-        car.boost = clampValue(car.boost - 28.0f * dt, 0.0f, 100.0f);
-    } else {
-        car.boost = clampValue(car.boost + 9.0f * dt, 0.0f, 100.0f);
-    }
+    if (useBoost) car.boost = clampValue(car.boost - 28.0f * dt, 0.0f, 100.0f);
+    else car.boost = clampValue(car.boost + 9.0f * dt, 0.0f, 100.0f);
 
     const float maxSpeed = useBoost ? 35.0f : 22.0f;
     const float speed = std::sqrt(car.velocity.x * car.velocity.x +
@@ -133,7 +130,12 @@ static void collideCarAndBall(Game& game) {
         game.ball.position.x += normal.x * overlap;
         game.ball.position.y += normal.y * overlap;
         game.ball.position.z += normal.z * overlap;
-        hitBall(game, game.car.team);
+
+        const float closingSpeed =
+            (game.car.velocity.x - game.ball.velocity.x) * normal.x +
+            (game.car.velocity.y - game.ball.velocity.y) * normal.y +
+            (game.car.velocity.z - game.ball.velocity.z) * normal.z;
+        if (closingSpeed > 0.0f) hitBall(game, game.car.team);
     }
 }
 
@@ -143,13 +145,10 @@ void updateBall(Game& game, float dt) {
 
     if (game.mode == HEATSEEKER) {
         const float targetZ = ball.targetTeam == 0 ? -ARENA_Z : ARENA_Z;
-        const float dx = -ball.position.x;
-        const float dz = targetZ - ball.position.z;
-        Vec3 aim = normalizeVec({dx, 0.0f, dz});
+        Vec3 aim = normalizeVec({-ball.position.x, 0.0f, targetZ - ball.position.z});
         ball.velocity.x += aim.x * 7.0f * dt;
         ball.velocity.z += aim.z * 7.0f * dt;
     }
-
     if (game.mode == BULLET_BALL) {
         ball.velocity.x *= 1.0f + 0.35f * dt;
         ball.velocity.z *= 1.0f + 0.35f * dt;
@@ -189,7 +188,6 @@ void updateBall(Game& game, float dt) {
         ball.position.z = clampValue(ball.position.z, -ARENA_Z, ARENA_Z);
         ball.velocity.z = -ball.velocity.z * 0.82f;
     }
-
     ball.speed = vecLength(ball.velocity);
 }
 
