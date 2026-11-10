@@ -5,6 +5,9 @@ CONTENTID := UP0001-RLBETA01_00-0000000000000000
 
 OFILES := main.o game.o
 
+# GNU make has a built-in LD=ld; override it with the PS3 linker.
+LD := ppu-ld
+
 CFLAGS := -O2 -Wall \
 -I$(PSL1GHT)/ppu/include
 
