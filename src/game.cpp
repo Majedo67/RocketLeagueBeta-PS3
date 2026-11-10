@@ -1,10 +1,12 @@
 #include "game.h"
 #include <cmath>
 
+static const float PI = 3.14159265f;
+static const float GOAL_HALF_WIDTH = 10.0f;
+static const float GOAL_HEIGHT = 8.0f;
+
 float clampValue(float v, float low, float high) {
-    if (v < low) return low;
-    if (v > high) return high;
-    return v;
+    return v < low ? low : (v > high ? high : v);
 }
 
 float vecLength(Vec3 v) {
@@ -13,21 +15,14 @@ float vecLength(Vec3 v) {
 
 Vec3 normalizeVec(Vec3 v) {
     float length = vecLength(v);
-
-    if (length <= 0.0001f)
-        return {0.0f, 0.0f, 0.0f};
-
-    return {
-        v.x / length,
-        v.y / length,
-        v.z / length
-    };
+    if (length <= 0.0001f) return {0.0f, 0.0f, 0.0f};
+    return {v.x / length, v.y / length, v.z / length};
 }
 
 void resetBall(Game& game) {
-    game.ball.position = {0.0f, 1.5f, 0.0f};
+    game.ball.position = {0.0f, BALL_RADIUS, 0.0f};
     game.ball.velocity = {0.0f, 0.0f, 0.0f};
-    game.ball.targetTeam = 0;
+    game.ball.targetTeam = 1;
     game.ball.lastHitTeam = -1;
     game.ball.speed = 0.0f;
 }
@@ -41,72 +36,58 @@ void resetGame(Game& game) {
     game.car.jumping = false;
     game.car.boosting = false;
     game.car.drifting = false;
-
     game.mode = NORMAL;
     game.blueScore = 0;
     game.orangeScore = 0;
     game.matchTime = 300.0f;
-
     resetBall(game);
 }
 
 void moveCar(Game& game, float throttle, float steering, float dt) {
     Car& car = game.car;
+    throttle = clampValue(throttle, -1.0f, 1.0f);
+    steering = clampValue(steering, -1.0f, 1.0f);
 
-    float acceleration = car.boosting ? 45.0f : 24.0f;
+    const bool useBoost = car.boosting && car.boost > 0.0f;
+    const float acceleration = useBoost ? 43.0f : 24.0f;
+    const float turnRate = car.drifting ? 2.65f : 1.75f;
 
-    car.rotation += steering *
-        (car.drifting ? 2.8f : 1.8f) * dt;
+    car.rotation += steering * turnRate * dt;
+    if (car.rotation > PI) car.rotation -= 2.0f * PI;
+    if (car.rotation < -PI) car.rotation += 2.0f * PI;
 
-    float forwardX = std::sin(car.rotation);
-    float forwardZ = std::cos(car.rotation);
-
+    const float forwardX = std::sin(car.rotation);
+    const float forwardZ = std::cos(car.rotation);
     car.velocity.x += forwardX * throttle * acceleration * dt;
     car.velocity.z += forwardZ * throttle * acceleration * dt;
 
-    if (car.boosting && car.boost > 0.0f) {
-        car.boost -= 25.0f * dt;
-        if (car.boost < 0.0f) car.boost = 0.0f;
+    if (useBoost) {
+        car.boost = clampValue(car.boost - 28.0f * dt, 0.0f, 100.0f);
+    } else {
+        car.boost = clampValue(car.boost + 9.0f * dt, 0.0f, 100.0f);
     }
 
-    if (!car.boosting && car.boost < 100.0f) {
-        car.boost += 8.0f * dt;
-        if (car.boost > 100.0f) car.boost = 100.0f;
-    }
-
-    float maxSpeed = car.boosting ? 35.0f : 22.0f;
-    float speed = std::sqrt(
-        car.velocity.x * car.velocity.x +
-        car.velocity.z * car.velocity.z
-    );
-
+    const float maxSpeed = useBoost ? 35.0f : 22.0f;
+    const float speed = std::sqrt(car.velocity.x * car.velocity.x +
+                                  car.velocity.z * car.velocity.z);
     if (speed > maxSpeed) {
         car.velocity.x *= maxSpeed / speed;
         car.velocity.z *= maxSpeed / speed;
     }
 
-    float friction = car.drifting ? 0.35f : 1.8f;
-
-    if (!car.jumping) {
-        car.velocity.x *= 1.0f - friction * dt;
-        car.velocity.z *= 1.0f - friction * dt;
-    }
+    const float drag = car.drifting ? 0.45f : 1.65f;
+    const float dragFactor = clampValue(1.0f - drag * dt, 0.0f, 1.0f);
+    car.velocity.x *= dragFactor;
+    car.velocity.z *= dragFactor;
 
     car.position.x += car.velocity.x * dt;
     car.position.z += car.velocity.z * dt;
-
-    car.position.x = clampValue(
-        car.position.x, -ARENA_X, ARENA_X
-    );
-
-    car.position.z = clampValue(
-        car.position.z, -ARENA_Z, ARENA_Z
-    );
+    car.position.x = clampValue(car.position.x, -ARENA_X + CAR_RADIUS, ARENA_X - CAR_RADIUS);
+    car.position.z = clampValue(car.position.z, -ARENA_Z + CAR_RADIUS, ARENA_Z - CAR_RADIUS);
 }
 
 void jumpCar(Game& game) {
     Car& car = game.car;
-
     if (!car.jumping) {
         car.velocity.y = 12.0f;
         car.jumping = true;
@@ -115,10 +96,8 @@ void jumpCar(Game& game) {
 
 void updateCarVertical(Car& car, float dt) {
     if (!car.jumping) return;
-
     car.velocity.y -= 24.0f * dt;
     car.position.y += car.velocity.y * dt;
-
     if (car.position.y <= 0.0f) {
         car.position.y = 0.0f;
         car.velocity.y = 0.0f;
@@ -129,35 +108,51 @@ void updateCarVertical(Car& car, float dt) {
 void hitBall(Game& game, int team) {
     Vec3 direction = normalizeVec({
         game.ball.position.x - game.car.position.x,
-        0.0f,
+        game.ball.position.y - (game.car.position.y + 1.0f),
         game.ball.position.z - game.car.position.z
     });
-
-    game.ball.velocity.x += direction.x * 12.0f;
-    game.ball.velocity.z += direction.z * 12.0f;
-
+    if (vecLength(direction) < 0.001f) direction = {0.0f, 0.2f, 1.0f};
+    game.ball.velocity.x += direction.x * 13.0f;
+    game.ball.velocity.y += direction.y * 13.0f + 2.0f;
+    game.ball.velocity.z += direction.z * 13.0f;
     game.ball.lastHitTeam = team;
     game.ball.targetTeam = team == 0 ? 1 : 0;
 }
 
+static void collideCarAndBall(Game& game) {
+    Vec3 delta = {
+        game.ball.position.x - game.car.position.x,
+        game.ball.position.y - (game.car.position.y + 1.0f),
+        game.ball.position.z - game.car.position.z
+    };
+    const float distance = vecLength(delta);
+    const float minimum = BALL_RADIUS + CAR_RADIUS * 0.65f;
+    if (distance > 0.0001f && distance < minimum) {
+        Vec3 normal = normalizeVec(delta);
+        const float overlap = minimum - distance;
+        game.ball.position.x += normal.x * overlap;
+        game.ball.position.y += normal.y * overlap;
+        game.ball.position.z += normal.z * overlap;
+        hitBall(game, game.car.team);
+    }
+}
+
 void updateBall(Game& game, float dt) {
     Ball& ball = game.ball;
-
     ball.velocity.y -= 18.0f * dt;
 
     if (game.mode == HEATSEEKER) {
-        float targetZ = ball.targetTeam == 0
-            ? -ARENA_Z : ARENA_Z;
-
-        float direction = targetZ > ball.position.z
-            ? 1.0f : -1.0f;
-
-        ball.velocity.z += direction * 5.0f * dt;
+        const float targetZ = ball.targetTeam == 0 ? -ARENA_Z : ARENA_Z;
+        const float dx = -ball.position.x;
+        const float dz = targetZ - ball.position.z;
+        Vec3 aim = normalizeVec({dx, 0.0f, dz});
+        ball.velocity.x += aim.x * 7.0f * dt;
+        ball.velocity.z += aim.z * 7.0f * dt;
     }
 
     if (game.mode == BULLET_BALL) {
-        ball.velocity.x *= 1.01f;
-        ball.velocity.z *= 1.01f;
+        ball.velocity.x *= 1.0f + 0.35f * dt;
+        ball.velocity.z *= 1.0f + 0.35f * dt;
     }
 
     ball.position.x += ball.velocity.x * dt;
@@ -166,30 +161,46 @@ void updateBall(Game& game, float dt) {
 
     if (ball.position.y < BALL_RADIUS) {
         ball.position.y = BALL_RADIUS;
-        ball.velocity.y = -ball.velocity.y * 0.7f;
+        ball.velocity.y = std::fabs(ball.velocity.y) * 0.72f;
+        ball.velocity.x *= 0.985f;
+        ball.velocity.z *= 0.985f;
     }
 
-    if (ball.position.x > ARENA_X ||
-        ball.position.x < -ARENA_X) {
-        ball.velocity.x = -ball.velocity.x * 0.8f;
+    if (ball.position.x > ARENA_X - BALL_RADIUS ||
+        ball.position.x < -ARENA_X + BALL_RADIUS) {
+        ball.position.x = clampValue(ball.position.x, -ARENA_X + BALL_RADIUS, ARENA_X - BALL_RADIUS);
+        ball.velocity.x = -ball.velocity.x * 0.82f;
     }
 
-    if (ball.position.z > ARENA_Z ||
-        ball.position.z < -ARENA_Z) {
-        ball.velocity.z = -ball.velocity.z * 0.8f;
+    const bool insideGoal = std::fabs(ball.position.x) < GOAL_HALF_WIDTH &&
+                            ball.position.y < GOAL_HEIGHT;
+    if (insideGoal && ball.position.z > ARENA_Z) {
+        ++game.blueScore;
+        resetBall(game);
+        return;
     }
+    if (insideGoal && ball.position.z < -ARENA_Z) {
+        ++game.orangeScore;
+        resetBall(game);
+        return;
+    }
+
+    if (ball.position.z > ARENA_Z || ball.position.z < -ARENA_Z) {
+        ball.position.z = clampValue(ball.position.z, -ARENA_Z, ARENA_Z);
+        ball.velocity.z = -ball.velocity.z * 0.82f;
+    }
+
+    ball.speed = vecLength(ball.velocity);
 }
 
-void updateGame(
-    Game& game,
-    float throttle,
-    float steering,
-    float dt
-) {
+void updateGame(Game& game, float throttle, float steering, float dt) {
+    if (dt <= 0.0f) return;
     moveCar(game, throttle, steering, dt);
     updateCarVertical(game.car, dt);
+    collideCarAndBall(game);
     updateBall(game, dt);
-
-    if (game.matchTime > 0.0f)
+    if (game.matchTime > 0.0f) {
         game.matchTime -= dt;
+        if (game.matchTime < 0.0f) game.matchTime = 0.0f;
+    }
 }
