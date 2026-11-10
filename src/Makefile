@@ -5,8 +5,8 @@ CONTENTID := UP0001-RLBETA01_00-0000000000000000
 
 OFILES := main.o game.o
 
-# GNU make has a built-in LD=ld; override it with the PS3 linker.
-LD := ppu-ld
+# Use the PS3 compiler driver so startup files and the C/C++ runtime are linked.
+LD := ppu-g++
 
 CFLAGS := -O2 -Wall \
 -I$(PSL1GHT)/ppu/include
@@ -16,6 +16,6 @@ CXXFLAGS := -O2 -Wall -std=gnu++11 \
 -I$(PSL1GHT)/ppu/include/simdmath \
 -I$(PORTLIBS)/include
 
-LIBS := -L$(PORTLIBS)/lib -ltiny3d
+LIBS := -L$(PORTLIBS)/lib -ltiny3d -lrsx -lgcm_sys -lsysutil -lvideo -lm
 
 include $(PS3DEV)/ppu_rules
