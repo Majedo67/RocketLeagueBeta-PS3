@@ -23,6 +23,9 @@ jobs:
           echo "PS3DEV=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
           echo "PSL1GHT=$GITHUB_WORKSPACE/ps3dev" >> "$GITHUB_ENV"
           echo "PORTLIBS=$GITHUB_WORKSPACE/ps3dev/portlibs/ppu" >> "$GITHUB_ENV"
+          echo "$GITHUB_WORKSPACE/ps3dev/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/ps3dev/ppu/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/ps3dev/spu/bin" >> "$GITHUB_PATH"
 
       - name: Install Tiny3D graphics library
         run: |
@@ -33,6 +36,7 @@ jobs:
 
       - name: Verify sources and toolchain
         run: |
+          command -v ppu-g++
           ppu-g++ --version
           test -f "$PSL1GHT/ppu_rules"
           find src -maxdepth 3 -type f -print
