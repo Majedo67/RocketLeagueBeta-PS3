@@ -13,8 +13,15 @@ int main() {
     resetGame(game);
     initializeMenu(menu);
 
-    if (!initializeController()) return 1;
-    initializeRenderer();
+    // Keep the game running even if controller initialization fails.
+    // updateController() safely returns when no pad data is available.
+    const bool controllerReady = initializeController();
+
+    // tiny3d_Init initializes the PS3 video/RSX environment.
+    if (tiny3d_Init(1024 * 1024) != TINY3D_OK) {
+        if (controllerReady) shutdownController();
+        return 1;
+    }
 
     const float dt = 1.0f / 60.0f;
 
@@ -58,6 +65,6 @@ int main() {
     }
 
     shutdownRenderer();
-    shutdownController();
+    if (controllerReady) shutdownController();
     return 0;
 }
