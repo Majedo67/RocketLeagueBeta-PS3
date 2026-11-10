@@ -16,6 +16,7 @@ CXXFLAGS := -O2 -Wall -std=gnu++11 \
 -I$(PSL1GHT)/ppu/include/simdmath \
 -I$(PORTLIBS)/include
 
-LIBS := -L$(PORTLIBS)/lib -ltiny3d -lrsx -lgcm_sys -lsysutil -lvideo -lm
+# PSL1GHT provides controller I/O, RSX/GCM, and video APIs through these libraries.
+LIBS := -L$(PORTLIBS)/lib -ltiny3d -lio -lrsx -lgcm_sys -lsysutil -lm
 
 include $(PS3DEV)/ppu_rules
