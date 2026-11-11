@@ -1,70 +1,52 @@
-#include "game.h"
-#include "menu.h"
-#include "controller.h"
-#include "renderer.h"
+#include <io/pad.h>
+#include <tiny3d.h>
 
-int main() {
-    Game game = {};
-    MenuState menu = {};
-    bool confirm = false;
-    float throttle = 0.0f;
-    float steering = 0.0f;
+// Minimal PS3 startup test based on the Tiny3D sample initialization order.
+// This isolates package/SELF/Tiny3D startup from the unfinished game code.
+static void drawRect(float x, float y, float w, float h, unsigned int color) {
+    tiny3d_SetPolygon(TINY3D_QUADS);
+    tiny3d_VertexPos(x, y, 65535);
+    tiny3d_VertexColor(color);
+    tiny3d_VertexPos(x + w, y, 65535);
+    tiny3d_VertexPos(x + w, y + h, 65535);
+    tiny3d_VertexPos(x, y + h, 65535);
+    tiny3d_End();
+}
 
-    resetGame(game);
-    initializeMenu(menu);
+int main(int argc, const char* argv[]) {
+    (void)argc;
+    (void)argv;
 
-    // Keep the game running even if controller initialization fails.
-    // updateController() safely returns when no pad data is available.
-    const bool controllerReady = initializeController();
+    // Tiny3D sample initializes graphics before controller I/O.
+    tiny3d_Init(1024 * 1024);
+    ioPadInit(7);
 
-    // tiny3d_Init initializes the PS3 video/RSX environment.
-    if (tiny3d_Init(1024 * 1024) != TINY3D_OK) {
-        if (controllerReady) shutdownController();
-        return 1;
-    }
+    padInfo padinfo;
+    padData paddata;
 
-    const float dt = 1.0f / 60.0f;
+    while (1) {
+        tiny3d_Clear(0xFF080D20, TINY3D_CLEAR_ALL);
+        tiny3d_Project2D();
 
-    while (true) {
-        updateController(menu, game, confirm, throttle, steering);
+        // Visible diagnostic screen: cyan frame and blue center panel.
+        drawRect(0, 0, 848, 512, 0xFF102040);
+        drawRect(24, 24, 800, 464, 0xFF00BFFF);
+        drawRect(32, 32, 784, 448, 0xFF102040);
+        drawRect(180, 190, 488, 132, 0xFF087FFF);
 
-        if (confirm && !menu.waitingForStart) {
-            switch (getSelectedMenuOption(menu)) {
-                case OPTION_PLAY:
-                case OPTION_LOCAL_MATCH:
-                    game.mode = NORMAL;
-                    menu.visible = false;
-                    break;
-                case OPTION_HEATSEEKER:
-                    game.mode = HEATSEEKER;
-                    menu.visible = false;
-                    break;
-                case OPTION_BULLET_BALL:
-                    game.mode = BULLET_BALL;
-                    menu.visible = false;
-                    break;
-                case OPTION_TRAINING:
-                    game.mode = NORMAL;
-                    game.matchTime = 0.0f;
-                    menu.visible = false;
-                    break;
-                case OPTION_GARAGE:
-                    menu.screen = MENU_GARAGE;
-                    break;
-                case OPTION_SETTINGS:
-                    menu.screen = MENU_SETTINGS;
-                    break;
-                case OPTION_EXIT:
-                default:
-                    break;
+        tiny3d_Flip();
+
+        ioPadGetInfo(&padinfo);
+        for (int i = 0; i < MAX_PADS; ++i) {
+            if (padinfo.status[i]) {
+                ioPadGetData(i, &paddata);
+                if (paddata.BTN_CROSS) {
+                    ioPadEnd();
+                    return 0;
+                }
             }
         }
-
-        if (!menu.visible) updateGame(game, throttle, steering, dt);
-        renderGame(game, menu);
     }
 
-    shutdownRenderer();
-    if (controllerReady) shutdownController();
     return 0;
 }
